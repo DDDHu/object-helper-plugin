@@ -3,14 +3,12 @@ package cn.bigcoder.plugin.objecthelper.generator.method;
 import cn.bigcoder.plugin.objecthelper.common.util.PsiUtils;
 import cn.bigcoder.plugin.objecthelper.common.util.StringUtils;
 import cn.bigcoder.plugin.objecthelper.generator.AbstractMethodGenerator;
-import com.intellij.psi.PsiClass;
-import com.intellij.psi.PsiField;
-import com.intellij.psi.PsiMethod;
-import com.intellij.psi.PsiModifier;
-import com.intellij.psi.PsiModifierList;
-import com.intellij.psi.PsiParameter;
-import org.apache.commons.collections.CollectionUtils;
+import com.intellij.openapi.editor.Document;
+import com.intellij.psi.*;
+import com.intellij.psi.javadoc.PsiDocComment;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.Objects;
 
 import static cn.bigcoder.plugin.objecthelper.common.constant.JavaKeyWord.*;
 import static cn.bigcoder.plugin.objecthelper.common.util.PsiUtils.getMethodReturnClassName;
@@ -20,17 +18,15 @@ import static cn.bigcoder.plugin.objecthelper.common.util.PsiUtils.getPsiClass;
  * @author: Jindong.Tian
  * @date: 2021-01-09
  **/
-public class ObjectCopyMethodGenerator extends AbstractMethodGenerator {
+public class ObjectPatchMethodGenerator extends AbstractMethodGenerator {
 
-    protected static final int FIRST_INDEX = 0;
+
+
     /**
      * 方法第一个参数名称
      */
     private String firstParameterName;
-    /**
-     * 方法返回局部变量名称
-     */
-    private String returnObjName;
+    private String secondaryParameterName;
 
     private void init(PsiMethod psiMethod) {
         if (psiMethod == null) {
@@ -39,29 +35,13 @@ public class ObjectCopyMethodGenerator extends AbstractMethodGenerator {
         super.project = psiMethod.getProject();
         super.psiMethod = psiMethod;
         this.firstParameterName = getFirstParameter().getName();
-        this.returnObjName = StringUtils.firstLowerCase(getMethodReturnClassName(psiMethod));
-        // 防止方法入参和返回参数名称一致
-        if (firstParameterName.equals(returnObjName)) {
-            this.returnObjName = this.returnObjName + "1";
-        }
+        this.secondaryParameterName = getSecondaryParameter().getName();
     }
 
-    /**
-     * 检查是否具备生成方法所需要的环境
-     *
-     * @return true代表校验通过
-     */
-    protected boolean check() {
-        if (CollectionUtils.isEmpty(getParameters()) || VOID.equals(getMethodReturnClassName(psiMethod))) {
-            return false;
-        }
-        return true;
-    }
-
-    public static ObjectCopyMethodGenerator getInstance(PsiMethod psiMethod) {
-        ObjectCopyMethodGenerator objectCopyMethodGenerator = new ObjectCopyMethodGenerator();
-        objectCopyMethodGenerator.init(psiMethod);
-        return objectCopyMethodGenerator;
+    public static ObjectPatchMethodGenerator getInstance(PsiMethod psiMethod) {
+        ObjectPatchMethodGenerator objectPatchMethodGenerator = new ObjectPatchMethodGenerator();
+        objectPatchMethodGenerator.init(psiMethod);
+        return objectPatchMethodGenerator;
     }
 
     /**
@@ -73,8 +53,11 @@ public class ObjectCopyMethodGenerator extends AbstractMethodGenerator {
     protected String generateMethodBody() {
         StringBuilder result = new StringBuilder();
         result.append(generateNullCheck());
-        result.append(generateObjectCreateLine());
         for (PsiField field : PsiUtils.getAllPsiFields(getFirstParameterClass())) {
+            PsiDocComment docComment=field.getDocComment();
+            if(docComment!=null && docComment.getText().indexOf("@skip")>0){
+                continue;
+            }
             PsiModifierList modifierList = field.getModifierList();
             if (modifierList == null ||
                     modifierList.hasModifierProperty(PsiModifier.STATIC) ||
@@ -84,18 +67,15 @@ public class ObjectCopyMethodGenerator extends AbstractMethodGenerator {
             }
             result.append(generateFieldCopyLine(field));
         }
-        result.append(generateReturnLine());
         return result.toString();
     }
 
-    /**
-     * 生成示例：{@code UserDTO userDTO = new UserDTO();}
-     *
-     * @return
-     */
-    @NotNull
-    private String generateObjectCreateLine() {
-        return getMethodReturnClassName(psiMethod) + BLANK_SEPARATOR + returnObjName + "= new " + getMethodReturnClassName(psiMethod) + "();" + LINE_SEPARATOR;
+    @Override
+    protected boolean check() {
+        if(!Objects.equals(getSecondaryParameterClass().getName(), getFirstParameterClass().getName())){
+            return false;
+        }
+        return true;
     }
 
     /**
@@ -106,17 +86,9 @@ public class ObjectCopyMethodGenerator extends AbstractMethodGenerator {
      */
     @NotNull
     private String generateFieldCopyLine(PsiField field) {
-        return returnObjName + ".set" + StringUtils.firstUpperCase(field.getName()) + "(" + firstParameterName + ".get" + StringUtils.firstUpperCase(field.getName()) + "());" + LINE_SEPARATOR;
-    }
-
-    /**
-     * 生成示例：{@code return userDTO;}
-     *
-     * @return
-     */
-    @NotNull
-    private String generateReturnLine() {
-        return "return " + returnObjName + SEMICOLON_SEPARATOR;
+        return "if (" + firstParameterName + ".get" + StringUtils.firstUpperCase(field.getName()) + "()!=null){" +
+                secondaryParameterName + ".set" + StringUtils.firstUpperCase(field.getName()) + "(" + firstParameterName + ".get" + StringUtils.firstUpperCase(field.getName()) + "());" + LINE_SEPARATOR +
+                "}";
     }
 
     /**
@@ -125,7 +97,7 @@ public class ObjectCopyMethodGenerator extends AbstractMethodGenerator {
      * @return
      */
     private String generateNullCheck() {
-        return "if(" + getFirstParameter().getName() + "==null){return null;}";
+        return "if(" + getFirstParameter().getName() + "==null || "+getSecondaryParameter().getName()+"==null){return;}";
     }
 
     /**
@@ -134,7 +106,11 @@ public class ObjectCopyMethodGenerator extends AbstractMethodGenerator {
      * @return
      */
     private PsiParameter getFirstParameter() {
-        return getParameters().get(FIRST_INDEX);
+        return getParameters().get(0);
+    }
+
+    private PsiParameter getSecondaryParameter() {
+        return getParameters().get(1);
     }
 
     /**
@@ -144,5 +120,9 @@ public class ObjectCopyMethodGenerator extends AbstractMethodGenerator {
      */
     private PsiClass getFirstParameterClass() {
         return getPsiClass(getFirstParameter().getType(), project);
+    }
+
+    private PsiClass getSecondaryParameterClass() {
+        return getPsiClass(getSecondaryParameter().getType(), project);
     }
 }

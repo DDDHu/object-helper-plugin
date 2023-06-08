@@ -43,6 +43,9 @@
     <action id="cn.bigcoder.plugin.objecthelper.action.ObjectCopyMethodAction" class="cn.bigcoder.plugin.objecthelper.action.ObjectCopyMethodAction" text="Object Copy Method">
       <add-to-group group-id="GenerateGroup" anchor="last"/>
     </action>
+    <action id="cn.bigcoder.plugin.objecthelper.action.ObjectPatchMethodAction" class="cn.bigcoder.plugin.objecthelper.action.ObjectPatchMethodAction" text="Object Patch Method">
+      <add-to-group group-id="GenerateGroup" anchor="last"/>
+    </action>
     <action id="cn.bigcoder.plugin.objecthelper.action.ClassToFormatJsonAction"
             class="cn.bigcoder.plugin.objecthelper.action.ClassToFormatJsonAction" text="Class To JSON"
             description="Converts the Java class to a JSON string">

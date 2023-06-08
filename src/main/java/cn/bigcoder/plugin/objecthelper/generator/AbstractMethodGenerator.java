@@ -19,7 +19,8 @@ import static cn.bigcoder.plugin.objecthelper.common.util.PsiUtils.*;
  **/
 public abstract class AbstractMethodGenerator implements Generator {
 
-    protected static final int FIRST_INDEX = 0;
+
+    protected static final int SECOND_INDEX = 1;
 
     protected Project project;
     protected PsiMethod psiMethod;
@@ -51,17 +52,7 @@ public abstract class AbstractMethodGenerator implements Generator {
      */
     protected abstract String generateMethodBody();
 
-    /**
-     * 检查是否具备生成方法所需要的环境
-     *
-     * @return true代表校验通过
-     */
-    protected boolean check() {
-        if (CollectionUtils.isEmpty(getParameters()) || VOID.equals(getMethodReturnClassName(psiMethod))) {
-            return false;
-        }
-        return true;
-    }
+    protected abstract boolean check();
 
     protected List<PsiParameter> getParameters() {
         return getPsiParameters(psiMethod);

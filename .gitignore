@@ -4,3 +4,4 @@
 out/
 .gradle/
 build/
+/.fastRequest/config/fastRequestCurrentProjectConfig.json
